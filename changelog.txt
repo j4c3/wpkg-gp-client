@@ -1,3 +1,7 @@
+Changelog 0.9.7.5 - 
+- python3 and newer versions of wxPython and pyWin32
+- use python-dateutils in place of strpdate to workaround wx.loacle issue in versions > 4.07
+
 Changelog 0.9.7.1 - TESTING:
 - wpkg-gp information is now interpreted by their status code (v0.17.15)
     - this allows wpkg-gp to be translated
@@ -5,5 +9,5 @@ Changelog 0.9.7.1 - TESTING:
 - added brazilian portuguese translation (by jader31 on github)
 - spanish and brazilian translations are not 100% atm
 
-This Release depends on WPKG-GP v0.17.15!
+This Release depends on WPKG-GP v0.17.17!
 

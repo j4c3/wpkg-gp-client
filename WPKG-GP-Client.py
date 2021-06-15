@@ -1,5 +1,5 @@
 # -*- encoding: utf-8 -*-
-import wx
+import wx, wx.adv
 from wx.lib.delayedresult import startWorker
 import load_config
 from utilities import *
@@ -30,9 +30,9 @@ os.chdir(path)
 # ---------------------------------
 try:
     ini = load_config.ConfigIni(os.path.join(path, 'wpkg-gp_client.ini'))
-except load_config.NoConfigFile, error_msg:
+except load_config.NoConfigFile as error_msg:
     # Config file could not be opened!
-    print error_msg
+    print(error_msg)
     no_config = True
 else:
     no_config = False
@@ -40,11 +40,11 @@ else:
     allow_quit = ini.loadsetting('General', 'allow quit')
     check_last_upgrade = ini.loadsetting('General', 'check last update')
     last_upgrade_interval = ini.loadsetting('General', 'last update interval')
-    if not isinstance(last_upgrade_interval, (int, long)):
+    if not isinstance(last_upgrade_interval, (int)):
         last_upgrade_interval = 14
     check_vpn = ini.loadsetting('General', 'check vpn')
     shutdown_timeout = ini.loadsetting('General', 'shutdown timeout')
-    if not isinstance(shutdown_timeout, (int, long)):
+    if not isinstance(shutdown_timeout, (int)):
         shutdown_timeout = 30
     help_file = ini.loadsetting('General', 'help file')
     # Update Check method
@@ -69,7 +69,7 @@ else:
     update_blacklist = tuple(raw_update_blacklist)
     update_startup = ini.loadsetting('Update Check', 'startup')
     update_interval = ini.loadsetting('Update Check', 'interval')
-    if isinstance(update_interval, (int, long)):
+    if isinstance(update_interval, (int)):
         # Transform Minutes to Milliseconds for wx.python timer
         update_interval = update_interval * 60 * 1000
     else:
@@ -82,21 +82,20 @@ def create_menu_item(menu, label, image, func):
     item = wx.MenuItem(menu, -1, label)
     item.SetBitmap(img.get(image))
     menu.Bind(wx.EVT_MENU, func, id=item.GetId())
-    menu.AppendItem(item)
+    menu.Append(item)
     return item
 
-
-class TaskBarIcon(wx.TaskBarIcon):
+class TaskBarIcon(wx.adv.TaskBarIcon):
     def __init__(self, trayicon, tooltip):
         super(TaskBarIcon, self).__init__()
         self.show_no_updates = False
 
         # Set trayicon and tooltip
-        icon = wx.IconFromBitmap(wx.Bitmap(trayicon))
+        icon = wx.Icon(wx.Bitmap(trayicon))
         self.SetIcon(icon, tooltip)
 
-        self.Bind(wx.EVT_TASKBAR_LEFT_DCLICK, self.on_upgrade)
-        self.Bind(wx.EVT_TASKBAR_BALLOON_CLICK, self.on_bubble)
+        self.Bind(wx.adv.EVT_TASKBAR_LEFT_DCLICK, self.on_upgrade)
+        self.Bind(wx.adv.EVT_TASKBAR_BALLOON_CLICK, self.on_bubble)
         self.upd_error_count = 0
         self.checking_updates = False
         self.updates_available = False
@@ -175,7 +174,7 @@ class TaskBarIcon(wx.TaskBarIcon):
         # Update check function ended
         r = result.get()
         self.checking_updates = False
-        if isinstance(r, basestring):
+        if isinstance(r, str):
             # Error returned
             self.updates_available = False
             if self.upd_error_count < 2 and not self.show_no_updates:
@@ -203,7 +202,7 @@ class TaskBarIcon(wx.TaskBarIcon):
             self.upd_error_count = 0
             self.updates_available = False
             if self.show_no_updates:
-                self.ShowBalloon(title=_(u"No Updates"), text=" ", msec=5*1000, flags=wx.ICON_INFORMATION)
+                self.ShowBalloon(title=_(u"No Updates"), text=" ", msec=5 * 1000, flags=wx.ICON_INFORMATION)
                 self.show_no_updates = False
 
     def on_bubble(self, event):
@@ -378,13 +377,13 @@ class RunWPKGDialog(wx.Dialog):
             if not self.running:
                 # WPKG Process by this client has finished, no cancel possible
                 return
-            print 'Aborting WPKG Process' #TODO: MOVE TO DEBUG LOGGER
+            print('Aborting WPKG Process') #TODO: MOVE TO DEBUG LOGGER
             self.shouldAbort = True
             msg = 'Cancel'
             try:
                 pipeHandle = CreateFile("\\\\.\\pipe\\WPKG", GENERIC_READ | GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, None)
-            except pywintypes.error, (n, f, e):
-                print "Error when generating pipe handle: %s" % e #TODO: MOVE TO DEBUG LOGGER
+            except pywintypes.error as e:
+                print("Error when generating pipe handle: %s") % e #TODO: MOVE TO DEBUG LOGGER
                 return 1
 
             SetNamedPipeHandleState(pipeHandle, PIPE_READMODE_MESSAGE, None, None)
@@ -408,10 +407,10 @@ class RunWPKGDialog(wx.Dialog):
                 return 400, return_msg, None
         # LONG TASK is the PipeConnection to the WPKG-GP Windows Service
         self.running = True
-        msg = 'ExecuteNoReboot'
+        msg = b'ExecuteNoReboot'
         try:
             pipeHandle = CreateFile("\\\\.\\pipe\\WPKG", GENERIC_READ|GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, None)
-        except pywintypes.error, (n, f, e):
+        except pywintypes.error as e:
             # print "Error when generating pipe handle: %s" % e
             # Can't connect to pipe error, probably service not running
             return_msg = u"Error: WPKG-GP Service not running"
@@ -439,7 +438,7 @@ class RunWPKGDialog(wx.Dialog):
             except win32api.error as exc:
                 if exc.winerror == winerror.ERROR_PIPE_BUSY:
                     win32api.Sleep(5000)
-                    print 'Pipe Busy Error'
+                    print('Pipe Busy Error')
                     continue
                 break
 
@@ -457,7 +456,7 @@ class RunWPKGDialog(wx.Dialog):
             self.update_box.SetValue(_(u'WPKG-GP process aborted.'))
             if return_code == 200:
                 # display the error msg ?
-                print return_msg
+                print(return_msg)
         elif return_code == 400 or return_code == 105:
             self.update_box.SetValue(return_msg)
         elif return_code and return_code != 200:
@@ -552,6 +551,7 @@ class ViewLogDialog(wx.Dialog):
 
 if __name__ == '__main__':
     app = wx.App(False)
+
     # Translation configuration
     mylocale = wx.Locale(wx.LANGUAGE_DEFAULT)
     # TODO: Add config option or settings to force language? e.g.: wx.Locale(language=wx.LANGUAGE_FRENCH)
@@ -564,21 +564,21 @@ if __name__ == '__main__':
         dlgmsg = _(u'Can\'t open config file "{}"!').format("wpkg-gp_client.ini")
         dlg = wx.MessageDialog(None, dlgmsg, app_name, wx.OK | wx.ICON_ERROR)
         dlg.ShowModal()
-        sys.exit(1)
+        exit(1)
 
     # If an instance of WPKG-GP Client is running already in the users session
     if client_running():
         dlgmsg = _(u"An instance of WPKG-GP Client is already running!")
         dlg = wx.MessageDialog(None, dlgmsg, app_name, wx.OK | wx.ICON_INFORMATION)
         dlg.ShowModal()
-        sys.exit()
+        exit()
 
     if not wpkggp_version(req_wpkggp_ver):
         dlgmsg = _(u"WPKG-GP Client requires at least version"
                    u" {} of the WPKG-GP Service.").format(req_wpkggp_ver)
         dlg = wx.MessageDialog(None, dlgmsg, app_name, wx.OK | wx.ICON_ERROR)
         dlg.ShowModal()
-        sys.exit()
+        exit()
 
     # Set help file
     lang_int = mylocale.GetLanguage()

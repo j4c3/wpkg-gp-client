@@ -1,4 +1,4 @@
-import ConfigParser  # https://wiki.python.org/moin/ConfigParserExamples
+import configparser  # https://wiki.python.org/moin/ConfigParserExamples
 
 
 class NoConfigFile(Exception):
@@ -7,7 +7,7 @@ class NoConfigFile(Exception):
 
 class ConfigIni:
     def __init__(self, configfile):
-        self.config = ConfigParser.ConfigParser()
+        self.config = configparser.ConfigParser()
         if not self.config.read(configfile):
             error_str = "NoConfigFile Error - Can't open config file:\n{}".format(configfile)
             raise NoConfigFile(error_str)
@@ -29,7 +29,7 @@ class ConfigIni:
         # section always lowercase
         try:
             section = self._loadsection(section)
-        except ConfigParser.NoSectionError:
+        except configparser.NoSectionError:
             value = None
         else:
             try:

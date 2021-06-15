@@ -1,0 +1,8 @@
+.vscode/
+__pycache__/
+build/
+dist/*.exe
+dist/WPKG-GP-Client
+env/
+*.spec
+wpkg-gp_client.ini

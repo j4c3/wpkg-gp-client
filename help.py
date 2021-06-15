@@ -33,7 +33,7 @@ class HelpDialog(wx.Dialog):
             dlg.Destroy()
             self.Destroy()
         else:
-            test = file.read().decode("utf-8")
+            test = file.read()
             html = markdown2.markdown(test, extras=["tables"])
             html = '<body bgcolor="#f0f0f5">' + html
             #print html

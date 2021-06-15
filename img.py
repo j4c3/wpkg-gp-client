@@ -1,6 +1,5 @@
 import wx
 
-
 class AppImages:
     def __init__(self, path):
         self.path = path
@@ -16,7 +15,7 @@ class AppImages:
         try:
             image = 'img\\' + self.img_dict[iconname]
         except KeyError:
-            print 'Image: "{}" not found!'.format(iconname)
+            print('Image: "{}" not found!'.format(iconname))
             image = 'img\\' + self.img_dict['toilet']
         wximage = wx.Image(self.path + image, wx.BITMAP_TYPE_PNG).ConvertToBitmap()
         return wximage

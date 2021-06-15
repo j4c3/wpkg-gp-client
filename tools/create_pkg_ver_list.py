@@ -2,7 +2,7 @@ import os
 import xml.etree.cElementTree as ET
 from datetime import datetime
 import re
-import xmlpp
+import lxml
 from operator import itemgetter
 import argparse
 
@@ -42,8 +42,8 @@ def create_package_list(path):
     for entry in xmls:
         try:
             tree = ET.parse(entry[0])
-        except IOError, e:
-            print e
+        except IOError as e:
+            print(e)
             continue
         else:
             root = tree.getroot()
@@ -77,7 +77,8 @@ def createXML(file, packages):
         root.append(package)
     xml = "<?xml version='1.0' encoding='UTF-8'?>" + ET.tostring(root, encoding='utf-8', method='xml')
     outputfile = open(file, 'w')
-    xmlpp.pprint(xml, output=outputfile)
+    tree = lxml.etree.parse(xml)
+    lxml.etree.ElementTree(tree).write(outputfile, encoding="utf-8", xml_declaration=True, pretty_print=True)
     outputfile.close()
 
 packages = create_package_list(input_folder)

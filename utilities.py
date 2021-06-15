@@ -1,13 +1,13 @@
 # -*- encoding: utf-8 -*-
 import xml.etree.cElementTree as ET
 from pkg_resources import parse_version
-from urllib2 import urlopen, URLError
+import urllib
 import win32evtlog
 import win32evtlogutil
 import win32security
 import win32con
 import winerror
-import _winreg
+import winreg
 # Imports WPKGCOnnection:
 from win32pipe import *
 from win32file import *
@@ -17,14 +17,13 @@ import re
 import string
 import traceback
 import datetime
+from dateutil.parser import *
 import os
 import sys
 from subprocess import Popen, PIPE, call, check_output
 
-
 msi_exit_dic = {"1619": "ERROR_INSTALL_PACKAGE_OPEN_FAILED",
                 "1612": "ERROR_INSTALL_SOURCE_ABSENT"}
-
 
 def get_client_path():
     # Get Executable Path:
@@ -35,9 +34,9 @@ def get_client_path():
 def wpkg_running():
     running = None
     try:
-        key = _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE, R"SOFTWARE\WPKG", 0, _winreg.KEY_READ | _winreg.KEY_WOW64_64KEY)
-        running = _winreg.QueryValueEx(key, "running")[0]
-        _winreg.CloseKey(key)
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, R"SOFTWARE\WPKG", 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY)
+        running = winreg.QueryValueEx(key, "running")[0]
+        winreg.CloseKey(key)
     except WindowsError:
         pass
     if running == 'true':
@@ -48,9 +47,9 @@ def wpkg_running():
 def wpkggp_version(version):
     req_version = version
     try:
-        key = _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE, R"SOFTWARE\Wpkg-Gp", 0, _winreg.KEY_READ | _winreg.KEY_WOW64_64KEY)
-        inst_version = _winreg.QueryValueEx(key, "DisplayVersion")[0]
-        _winreg.CloseKey(key)
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, R"SOFTWARE\Wpkg-Gp", 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY)
+        inst_version = winreg.QueryValueEx(key, "DisplayVersion")[0]
+        winreg.CloseKey(key)
     except WindowsError:
         inst_version = None
         return False
@@ -58,7 +57,6 @@ def wpkggp_version(version):
         return True
     else:
         return False
-
 
 def arch_check():
     # Detect if x86 or AMD64 and set correct path to wpkg.xml
@@ -98,7 +96,7 @@ def client_running():
     clienttasklist = []
     sessionid = None
     for entry in prog:
-        if 'WPKG-GP-Client.exe' == entry[0]:
+        if 'WPKG-GP-Client.exe' == entry[0].decode():
             #store all instances of the client and its session id
             if len(entry) == 5:
                 clienttasklist.append((entry[0], entry[2]))
@@ -130,52 +128,50 @@ def shutdown(mode, time=60, msg=None):
     elif mode == 3:
         shutdown_str = shutdown_base_str + "/a"
     else:
-        print 'mode needs to be 1 = reboot, 2 = shutdown or 3 = cancel'
+        print('mode needs to be 1 = reboot, 2 = shutdown or 3 = cancel')
         return
     if mode < 3:
         if msg:
             if "%TIME%" in msg:
                 msg = msg.replace("%TIME%", str(time))
-                print msg # DEBGUG
-            shutdown_str += u' /c "{}"'.format(unicode(msg))
+                print(msg) # DEBGUG
+            shutdown_str += u' /c "{}"'.format(UNICODE(msg))
     # Don't Display Console Window
     # Source: http://stackoverflow.com/questions/7006238/how-do-i-hide-the-console-when-i-use-os-system-or-subprocess-call
     CREATE_NO_WINDOW = 0x08000000
     call(shutdown_str.encode(sys.getfilesystemencoding()), creationflags=CREATE_NO_WINDOW)
-
 
 def SetRebootPendingTime(reset=False):
     if reset:
         now = "None"
     else:
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with _winreg.CreateKeyEx(_winreg.HKEY_LOCAL_MACHINE, R"SOFTWARE\Wpkg-GP-Client", 0,
-                             _winreg.KEY_ALL_ACCESS | _winreg.KEY_WOW64_64KEY) as key:
-        _winreg.SetValueEx(key, "RebootPending", 0, _winreg.REG_EXPAND_SZ, now)
-
+    with winreg.CreateKeyEx(winreg.HKEY_LOCAL_MACHINE, R"SOFTWARE\Wpkg-GP-Client", 0,
+                             winreg.KEY_ALL_ACCESS | winreg.KEY_WOW64_64KEY) as key:
+        winreg.SetValueEx(key, "RebootPending", 0, winreg.REG_EXPAND_SZ, now)
 
 def ReadRebootPendingTime():
-    with _winreg.CreateKeyEx(_winreg.HKEY_LOCAL_MACHINE, R"SOFTWARE\Wpkg-GP-Client", 0,
-                             _winreg.KEY_ALL_ACCESS | _winreg.KEY_WOW64_64KEY) as key:
+    with winreg.CreateKeyEx(winreg.HKEY_LOCAL_MACHINE, R"SOFTWARE\Wpkg-GP-Client", 0,
+                             winreg.KEY_ALL_ACCESS | winreg.KEY_WOW64_64KEY) as key:
         try:
-            reboot_pending_value = _winreg.QueryValueEx(key, "RebootPending")[0]
+            reboot_pending_value = winreg.QueryValueEx(key, "RebootPending")[0]
         except WindowsError:
             return None
     try:
-        reboot_pending_time = datetime.datetime.strptime(reboot_pending_value, '%Y-%m-%d %H:%M:%S')
+        reboot_pending_time = parse(reboot_pending_value)
     except (ValueError, TypeError):
         return None
     return reboot_pending_time
 
 def ReadLastSyncTime():
-    with _winreg.CreateKeyEx(_winreg.HKEY_LOCAL_MACHINE, R"SOFTWARE\WPKG", 0,
-                             _winreg.KEY_READ | _winreg.KEY_WOW64_64KEY) as key:
+    with winreg.CreateKeyEx(winreg.HKEY_LOCAL_MACHINE, R"SOFTWARE\WPKG", 0,
+                             winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as key:
         try:
-            last_sync_value = _winreg.QueryValueEx(key, "lastsync")[0]
+            last_sync_value = winreg.QueryValueEx(key, "lastsync")[0]
         except WindowsError:
             return None
     try:
-        last_sync_time = datetime.datetime.strptime(last_sync_value, '%Y-%m-%d %H:%M:%S')
+        last_sync_time = parse(last_sync_value)
     except (ValueError, TypeError):
         return None
     return last_sync_time
@@ -188,7 +184,7 @@ def vpn_connected(arch="x64"):
     p = Popen('"{}" -s state'.format(vpn_path), stdout=PIPE, stderr=PIPE, shell=True)
     out, err = p.communicate()
     if err:
-        print err # TODO: DEBUG
+        print(err) # TODO: DEBUG
         return False
     else:
         if ">> notice: Connected to" in out:
@@ -200,7 +196,7 @@ def getPercentage(str):
     pat = re.compile('\(([0-9]{1,3})\/([0-9]{1,3})\)')
     try:
         cur, max = re.search(pat, str).groups()
-    except AttributeError, e:
+    except AttributeError as e:
         #print e
         progress = 1
     else:
@@ -216,18 +212,18 @@ def getPercentage(str):
 def getBootUp():
     p = Popen('wmic os get lastbootuptime', stdout=PIPE, stderr=PIPE, shell=True)
     out, err = p.communicate()
-    part_out = (out.split("\n", 1)[1]).split(".", 1)[0]
-    bootup_time = datetime.datetime.strptime(part_out, '%Y%m%d%H%M%S')
+    outS = out.decode('UTF-8')
+    part_out = (outS.split("\n", 1)[1]).split(".", 1)[0]
+    bootup_time = parse(part_out)
     return bootup_time
 
-
 def wpkggp_query(filter, blacklist):
-    msg = 'Query'
+    msg = b'Query'
     error_msg = None
     packages = []
     try:
         pipeHandle = CreateFile("\\\\.\\pipe\\WPKG", GENERIC_READ | GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, None)
-    except pywintypes.error, (n, f, e):
+    except pywintypes.error as e:
         # print "Error when generating pipe handle: %s" % e
         error_msg = u"Error: WPKG-GP Service not running"
         return error_msg
@@ -263,7 +259,7 @@ def wpkggp_query(filter, blacklist):
         except win32api.error as exc:
             if exc.winerror == winerror.ERROR_PIPE_BUSY:
                 win32api.Sleep(5000)
-                print 'Pipe Busy Error'
+                print('Pipe Busy Error')
                 continue
             break
 
@@ -306,9 +302,9 @@ def get_local_packages(xml_path):
 def get_remote_packages(url):
     e = None
     try:
-        xml = urlopen(url, timeout=5).read()
-    except (IOError, URLError), e:
-        print str(e)
+        xml = urllib.urlopen(url, timeout=5).read()
+    except (IOError, urllib.URLError) as e:
+        print(str(e))
         return {}, str(e)
     root = ET.fromstring(xml)
     remote_packages = {}
@@ -359,7 +355,7 @@ def check_eventlog(start_time):
             for ev_obj in events:
                 the_time = ev_obj.TimeGenerated.Format()
                 # '%c' is the locale date and time string format
-                time_obj = datetime.datetime.strptime(the_time, '%c')
+                time_obj = parse(the_time)
                 #time_obj = datetime.datetime.strptime(the_time, '%m/%d/%y %H:%M:%S')
                 if time_obj < start_time:
                     #if time is old than the start time dont grab the data
@@ -368,7 +364,7 @@ def check_eventlog(start_time):
                 computer = str(ev_obj.ComputerName)
                 src = str(ev_obj.SourceName)
                 evt_type = str(evt_dict[ev_obj.EventType])
-                msg = unicode(win32evtlogutil.SafeFormatMessage(ev_obj, logtype))
+                msg = UNICODE(win32evtlogutil.SafeFormatMessage(ev_obj, logtype))
 
                 if (src == 'WSH'):  # Only Append WPKG Logs (WSH - Windows Scripting Host)
                     # Skip suppressed user notification info
@@ -382,12 +378,12 @@ def check_eventlog(start_time):
                                 exit_code = re.compile("\(([0-9]|[0-9]{2}|[0-9]{4})\)").search(msg).groups()[0]
                                 msg = msg + "MSI error ({}): {}".format(exit_code, msi_exit_dic[exit_code])
                             except (AttributeError, KeyError):
-                                print 'Couldnt determine MSI Exit Code'
+                                print('Couldnt determine MSI Exit Code')
                         error_log.append(string.join((the_time, computer, src, evt_type, '\n' + msg), ' : '))
 
             if time_obj < start_time:
                 break  # get out of while loop as well
         win32evtlog.CloseEventLog(hand)
     except:
-        print traceback.print_exc(sys.exc_info())
+        print(traceback.print_exc(sys.exc_info()))
     return log, error_log
