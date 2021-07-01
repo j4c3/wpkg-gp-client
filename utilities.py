@@ -8,11 +8,13 @@ import win32security
 import win32con
 import winerror
 import winreg
-# Imports WPKGCOnnection:
+# Imports WPKGCOnnection:  
 from win32pipe import *
 from win32file import *
 import pywintypes
 import win32api
+import threading
+import queue
 import re
 import string
 import traceback
@@ -99,12 +101,12 @@ def client_running():
         if 'WPKG-GP-Client.exe' == entry[0].decode():
             #store all instances of the client and its session id
             if len(entry) == 5:
-                clienttasklist.append((entry[0], entry[2]))
+                clienttasklist.append((entry[0].decode(), entry[2].decode()))
             else:
-                clienttasklist.append((entry[0], entry[3]))
-        if 'tasklist.exe' == entry[0]:
+                clienttasklist.append((entry[0].decode(), entry[3].decode()))
+        if 'tasklist.exe' == entry[0].decode():
             # setting sessionid of this session
-            sessionid = entry[3]
+            sessionid = entry[3].decode()
         else:
             continue
     for entry in clienttasklist:
@@ -114,9 +116,9 @@ def client_running():
         else:
             continue
     if n > 1:
-        return True
+        return True, sessionid
     else:
-        return False
+        return False, sessionid
 
 def shutdown(mode, time=60, msg=None):
     time = str(time)
@@ -387,3 +389,59 @@ def check_eventlog(start_time):
     except:
         print(traceback.print_exc(sys.exc_info()))
     return log, error_log
+
+def pipe_server(sessionID):
+    pipe_name = r"\\.\pipe\wpkg-gp-client_" + sessionID
+    pipe_handle = CreateNamedPipe(
+        pipe_name,
+        PIPE_ACCESS_DUPLEX, 
+        PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
+        PIPE_UNLIMITED_INSTANCES, 512, 512,300, None)
+    while True:
+        try:
+            print("Starting Pipe Server: " + pipe_name)
+            ConnectNamedPipe(pipe_handle, None)
+            print("Pipe client connected")
+            data = ReadFile(pipe_handle, 512, None)
+            if data is None or len(data) < 2:
+                continue
+            print('Recieved data:', data)
+            try:
+                DisconnectNamedPipe(pipe_handle)
+            except:
+                pass
+            return data
+        except pywintypes.error as e:
+            print("Exception: ", e)
+            win32api.Sleep(5000)
+            break
+
+def pipe_client(sessionID):
+    pipe_name = r"\\.\pipe\wpkg-gp-client_" + sessionID
+    pipe_connection = False
+    while not pipe_connection:
+        try:
+            pipe_handle = CreateFile(
+                pipe_name,
+                GENERIC_READ | GENERIC_WRITE,
+                FILE_SHARE_WRITE, None, OPEN_EXISTING, 0, None)
+            print("Connecting to Pipe Server: " + pipe_name)
+            pipe_connection = True
+        except pywintypes.error as e:
+            if e.args[0] == 2:
+                print("No pipe, retry")
+                win32api.Sleep(5000)
+            elif e.args[0] == 109:
+                print("Pipe broken, exiting")
+                break
+    try:
+        print("Connected to Pipe Server")
+        print("Sending data")
+        data = sessionID
+        WriteFile(pipe_handle, str.encode(data, encoding="UTF-8"))
+    finally:
+        try:
+            print("Disconnect from Pipe Server")
+            CloseHandle(pipe_handle)
+        except:
+            pass

@@ -1,10 +1,12 @@
 # -*- encoding: utf-8 -*-
 import wx, wx.adv
 from wx.lib.delayedresult import startWorker
-import load_config
+from pubsub import pub
+from threading import Thread
 from utilities import *
 from help import HelpDialog
 from img import AppImages
+import load_config
 
 # set translation function
 _ = wx.GetTranslation
@@ -77,7 +79,6 @@ else:
     update_url = ini.loadsetting('Update Check', 'update url')
     check_bootup_log = ini.loadsetting('General', 'check boot log')
 
-
 def create_menu_item(menu, label, image, func):
     item = wx.MenuItem(menu, -1, label)
     item.SetBitmap(img.get(image))
@@ -132,6 +133,12 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
                     dlg = wx.MessageDialog(None, dlg_str, _(u"Attention!"), wx.OK | wx.ICON_EXCLAMATION)
                     dlg.ShowModal()
                     self.on_upgrade(None)
+        EVT_RESULT(self, self.PipeEventResult)
+        PipeServerThread(self, sessionID=session_ID)
+
+    def PipeEventResult(self, msg):
+        if msg.data:
+            self.on_upgrade(None)
 
     def CreatePopupMenu(self):
         menu = wx.Menu()
@@ -252,6 +259,8 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
                 self.shutdown_scheduled = True
                 self.reboot_scheduled = True
             self.wpkg_dialog.Destroy()
+            # Not deleting this threw an error opening the dialog a second time after closing.
+            del(self.wpkg_dialog)
             if update_method and update_interval:
                 self.timer.Start()
 
@@ -389,7 +398,6 @@ class RunWPKGDialog(wx.Dialog):
             SetNamedPipeHandleState(pipeHandle, PIPE_READMODE_MESSAGE, None, None)
             WriteFile(pipeHandle, msg)
 
-
     def LongTask(self):
         return_msg = None
         return_code = None
@@ -525,7 +533,6 @@ class RunWPKGDialog(wx.Dialog):
                                log=self.log)
         logdlg.ShowModal()
 
-
 class ViewLogDialog(wx.Dialog):
     def __init__(self, title='Temp', log="Temp"):
         """Constructor"""
@@ -533,7 +540,6 @@ class ViewLogDialog(wx.Dialog):
         self.log = "\n".join(log)
         self.InitUI()
         self.SetSize((640, 480))
-
 
     def InitUI(self):
         self.panel = wx.Panel(self, wx.ID_ANY)
@@ -548,6 +554,28 @@ class ViewLogDialog(wx.Dialog):
     def OnClose(self, evt):
         self.Destroy()
 
+EVT_RESULT_ID = wx.ID_ANY
+
+def EVT_RESULT(win, func):
+    win.Connect(-1, -1, EVT_RESULT_ID, func)
+
+class PipeEvent(wx.PyEvent):
+    def __init__(self, data):
+        wx.PyEvent.__init__(self)
+        self.SetEventType(EVT_RESULT_ID)
+        self.data = data
+
+class PipeServerThread(Thread):
+    def __init__(self, wxObject, sessionID):
+        Thread.__init__(self)
+        self._wxObject = wxObject
+        self.sessionID = sessionID
+        self.start()
+
+    def run(self):
+        while True:
+            pipeMsg = pipe_server(self.sessionID)
+            wx.PostEvent(self._wxObject, PipeEvent(pipeMsg))
 
 if __name__ == '__main__':
     app = wx.App(False)
@@ -567,11 +595,13 @@ if __name__ == '__main__':
         exit(1)
 
     # If an instance of WPKG-GP Client is running already in the users session
-    if client_running():
-        dlgmsg = _(u"An instance of WPKG-GP Client is already running!")
-        dlg = wx.MessageDialog(None, dlgmsg, app_name, wx.OK | wx.ICON_INFORMATION)
-        dlg.ShowModal()
+    (client_running_value, sessionID) = client_running()
+    if client_running_value:
+        # Notify existing instance
+        pipe_client(sessionID)
         exit()
+    else:
+        session_ID = sessionID
 
     if not wpkggp_version(req_wpkggp_ver):
         dlgmsg = _(u"WPKG-GP Client requires at least version"
@@ -587,6 +617,6 @@ if __name__ == '__main__':
         help_file = get_help_translation(path, lang)
 
     TRAY_ICON = os.path.join(path, 'img', 'apacheconf-16.png')
-    TaskBarIcon(trayicon=TRAY_ICON, tooltip=app_name)
-    app.MainLoop()
+    taskbarIcon = TaskBarIcon(trayicon=TRAY_ICON, tooltip=app_name)
 
+    app.MainLoop()
