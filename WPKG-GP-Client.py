@@ -1,5 +1,6 @@
 # -*- encoding: utf-8 -*-
 import wx, wx.adv
+from sys import exit
 from wx.lib.delayedresult import startWorker
 from pubsub import pub
 from threading import Thread
@@ -604,7 +605,8 @@ if __name__ == '__main__':
     if client_running_value:
         # Notify existing instance
         pipe_client(sessionID)
-        exit()
+        app.Destroy()
+        exit(1)
     else:
         session_ID = sessionID
 
@@ -613,7 +615,7 @@ if __name__ == '__main__':
                    u" {} of the WPKG-GP Service.").format(req_wpkggp_ver)
         dlg = wx.MessageDialog(None, dlgmsg, app_name, wx.OK | wx.ICON_ERROR)
         dlg.ShowModal()
-        exit()
+        exit(1)
 
     # Set help file
     lang_int = mylocale.GetLanguage()

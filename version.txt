@@ -24,7 +24,7 @@ VSVersionInfo(
         StringStruct(u'LegalTrademarks', u'WPKG-GP Client is a Trademark of Nils Thiele.'),
         StringStruct(u'OriginalFilename', u'WPKG-GP-Client.exe'),
         StringStruct(u'ProductName', u'WPKG-GP Client'),
-        StringStruct(u'BuildID', u'0.9.7.5-20210615')])
+        StringStruct(u'BuildID', u'0.9.7.5-20210701')])
       ]),
     VarFileInfo([VarStruct(u'Translation', [0, 1200])])
   ]
