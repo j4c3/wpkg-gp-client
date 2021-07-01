@@ -344,6 +344,7 @@ def check_eventlog(start_time):
                 0: 'INFORMATION'}
     computer = 'localhost'
     logtype = 'Application'
+    log_divider = ' : '
 
     # open event log
     hand = win32evtlog.OpenEventLog(computer, logtype)
@@ -366,12 +367,12 @@ def check_eventlog(start_time):
                 computer = str(ev_obj.ComputerName)
                 src = str(ev_obj.SourceName)
                 evt_type = str(evt_dict[ev_obj.EventType])
-                msg = UNICODE(win32evtlogutil.SafeFormatMessage(ev_obj, logtype))
+                msg = win32evtlogutil.SafeFormatMessage(ev_obj, logtype)
 
                 if (src == 'WSH'):  # Only Append WPKG Logs (WSH - Windows Scripting Host)
                     # Skip suppressed user notification info
                     if not msg.startswith('User notification suppressed.'):
-                        log.append(string.join((the_time, computer, src, evt_type, '\n' + msg), ' : '))
+                        log.append(log_divider.join((the_time, computer, src, evt_type, '\n' + msg)))
                     # Create additional error log if there are warnings or errors
                     if (evt_type == "ERROR") or (evt_type == "WARNING"):
                         # Only Append Errors and Warnings
@@ -381,7 +382,7 @@ def check_eventlog(start_time):
                                 msg = msg + "MSI error ({}): {}".format(exit_code, msi_exit_dic[exit_code])
                             except (AttributeError, KeyError):
                                 print('Couldnt determine MSI Exit Code')
-                        error_log.append(string.join((the_time, computer, src, evt_type, '\n' + msg), ' : '))
+                        error_log.append(log_divider.join((the_time, computer, src, evt_type, '\n' + msg)))
 
             if time_obj < start_time:
                 break  # get out of while loop as well

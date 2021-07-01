@@ -306,8 +306,8 @@ class RunWPKGDialog(wx.Dialog):
     def InitUI(self):
         self.panel = wx.Panel(self, wx.ID_ANY)
         # Info Text
-        infotext = _(u'Close all open Applications, it is possible that programs will be closed without a warning '
-                     u'and system could reboot without further confirmation.')
+        infotext = _(u'Please save your work and close all open aplications before updating.  Applications left running may be terminated '
+                     u'and/or the system could reboot without further confirmation.')
 
         infobox = wx.StaticBox(self.panel, -1, _(u'Attention'))
         infoboxbsizer = wx.StaticBoxSizer(infobox, wx.VERTICAL)
@@ -359,8 +359,8 @@ class RunWPKGDialog(wx.Dialog):
             dlg.ShowModal()
             dlg.Destroy()
             return
-        dlg_title = _(u"2. Warning")
-        dlg_msg = _(u"Close all open programs!\n\nThe System could restart without further confirmation!\n\n" \
+        dlg_title = _(u"Warning")
+        dlg_msg = _(u"Close all open applications!\n\nThe system could restart without further confirmation!\n\n" \
                     u"Continue?")
         dlg = wx.MessageDialog(self, dlg_msg, dlg_title, wx.YES_NO|wx.YES_DEFAULT|wx.ICON_EXCLAMATION)
         if dlg.ShowModal() == wx.ID_YES:
@@ -380,7 +380,7 @@ class RunWPKGDialog(wx.Dialog):
             self.Close()
             return
         dlg_title = _(u"Cancel")
-        dlg_msg = _(u"System update in progress!\n\n Canceling this Progress could result in installation issues.\n"
+        dlg_msg = _(u"System update in progress!\n\n Canceling this process could result in installation issues.\n"
                     u"Cancel?")
         dlg = wx.MessageDialog(self, dlg_msg, dlg_title, wx.YES_NO|wx.YES_DEFAULT|wx.ICON_EXCLAMATION)
         if dlg.ShowModal() == wx.ID_YES:
@@ -457,7 +457,10 @@ class RunWPKGDialog(wx.Dialog):
     def LongTaskDone(self, result):
         self.running = False
         self.chk_shutdown.Disable()
-        chk_shutdown = self.chk_shutdown.IsChecked()
+        if disable_shutdown_checkbox:
+            chk_shutdown = False
+        else:
+            chk_shutdown = self.chk_shutdown.IsChecked()
         self.gauge.SetValue(100)
         return_code, return_msg, reboot = result.get()
         # Get WPKG Log
