@@ -45,6 +45,7 @@ else:
     if not isinstance(last_upgrade_interval, (int)):
         last_upgrade_interval = 14
     check_vpn = ini.loadsetting('General', 'check vpn')
+    disable_shutdown_checkbox = ini.loadsetting('General', 'disable shutdown checkbox')
     shutdown_timeout = ini.loadsetting('General', 'shutdown timeout')
     if not isinstance(shutdown_timeout, (int)):
         shutdown_timeout = 30
@@ -319,12 +320,13 @@ class RunWPKGDialog(wx.Dialog):
         self.update_box = wx.TextCtrl(self.panel, style=wx.TE_READONLY)
         self.update_box.SetBackgroundColour(wx.WHITE)
         self.chk_shutdown = wx.CheckBox(self.panel, size=(160,20), label=_(u"Shutdown after update"))
-
         self.logButton = wx.Button(self.panel, size=(54,26), label="LOG")
         self.logButton.SetToolTip(wx.ToolTip(_(u'Open WPKG Log')))
         self.logButton.SetBitmap(img.get('log'))
         self.startButton = wx.Button(self.panel, label=_(u"Update"))
         self.abortButton = wx.Button(self.panel, label=_(u"Cancel"))
+        if disable_shutdown_checkbox:
+            self.chk_shutdown.Disable()
         self.logButton.Disable()
         self.abortButton.Disable()
 
